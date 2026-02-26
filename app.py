@@ -31,45 +31,40 @@ def get_smiles_smart(name):
     try:
         opsin_url = f"https://opsin.ch.cam.ac.uk/opsin/{name}.json"
         res = requests.get(opsin_url)
-        if res.status_code == 200:
-            return res.json()['smiles']
-    except:
-        pass
+        if res.status_code == 200: return res.json()['smiles']
+    except: pass
     try:
         pcp_res = pcp.get_compounds(name, 'name')
-        if pcp_res:
-            return pcp_res[0].isomeric_smiles
-    except:
-        pass
+        if pcp_res: return pcp_res[0].isomeric_smiles
+    except: pass
     return None
 
 def calculate_axial_name(mol):
+    """حساب Ra/Sa بناءً على تماثل الإحداثيات"""
     try:
         mol_3d = Chem.AddHs(mol)
         AllChem.EmbedMolecule(mol_3d, AllChem.ETKDG())
         conf = mol_3d.GetConformer()
         pattern = Chem.MolFromSmarts("C=C=C")
         match = mol_3d.GetSubstructMatch(pattern)
-        if not match:
-            return "N/A"
+        if not match: return "N/A"
         angle = AllChem.GetDihedralDeg(conf, match[0]-1, match[0], match[2], match[2]+1)
         return "Ra" if angle > 0 else "Sa"
-    except:
-        return "Ra/Sa"
+    except: return "Ra/Sa"
 
-# ✅ تم تعديل هذه الدالة فقط لإظهار H + wedge/hatched بوضوح
+# --- دالة 2D تم تعديلها فقط لإظهار wedge/hatched ---
 def render_pro_2d(mol):
-    mc = Chem.AddHs(Chem.Mol(mol))  # إضافة H صراحةً
+    mc = Chem.Mol(mol)
 
     Chem.AssignStereochemistry(mc, force=True, cleanIt=True)
     AllChem.Compute2DCoords(mc)
 
+    # مهم لإظهار wedge/hatched على أي رابطة استيريو
     Chem.WedgeMolBonds(mc, mc.GetConformer())
 
     drawer = rdMolDraw2D.MolDraw2DCairo(500, 500)
     opts = drawer.drawOptions()
-
-    opts.bondLineWidth = 3.0
+    opts.bondLineWidth = 4.0
     opts.addStereoAnnotation = True
     opts.useMolBlockWedging = False
     opts.fixedBondLength = 35
@@ -77,7 +72,6 @@ def render_pro_2d(mol):
 
     drawer.DrawMolecule(mc)
     drawer.FinishDrawing()
-
     return drawer.GetDrawingText()
 
 # --- 3. المعالجة الرئيسية ---
@@ -89,6 +83,7 @@ if st.button("Analyze & Visualize Isomers"):
         mol = Chem.MolFromSmiles(smiles)
         allene_p = Chem.MolFromSmarts("C=C=C")
         
+        # تفعيل كشف الألين برمجياً
         if mol.HasSubstructMatch(allene_p):
             for match in mol.GetSubstructMatches(allene_p):
                 mol.GetAtomWithIdx(match[0]).SetChiralTag(Chem.ChiralType.CHI_TETRAHEDRAL_CW)
@@ -96,6 +91,7 @@ if st.button("Analyze & Visualize Isomers"):
         opts = StereoEnumerationOptions(tryEmbedding=True, onlyUnassigned=False)
         isomers = list(EnumerateStereoisomers(mol, options=opts))
         
+        # إذا لم يظهر الأيزومر الثاني للألين، نصنعه يدوياً
         if len(isomers) == 1 and mol.HasSubstructMatch(allene_p):
             iso2 = Chem.Mol(isomers[0])
             for a in iso2.GetAtoms():
@@ -119,8 +115,10 @@ if st.button("Analyze & Visualize Isomers"):
                 axial_type = "Ra" if i == 0 else "Sa"
                 st.markdown(f"### Isomer {i+1}: <span style='color: #800000;'>{axial_type}</span>", unsafe_allow_html=True)
                 
+                # عرض الـ 2D المحسن
                 st.image(render_pro_2d(iso), use_container_width=True)
                 
+                # عرض الـ 3D التفاعلي
                 m3d = Chem.AddHs(iso)
                 AllChem.EmbedMolecule(m3d, AllChem.ETKDG())
                 view = py3Dmol.view(width=400, height=300)
