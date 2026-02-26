@@ -87,4 +87,40 @@ if st.button("Analyze & Visualize Isomers"):
                 allene_pattern = Chem.MolFromSmarts("C=C=C")
                 if base_mol.HasSubstructMatch(allene_pattern):
                     for match in base_mol.GetSubstructMatches(allene_pattern):
-                        base_mol.GetAtomWithIdx(match[0]).SetChiralTag(
+                        base_mol.GetAtomWithIdx(match[0]).SetChiralTag(Chem.ChiralType.CHI_TETRAHEDRAL_CW)
+                
+                # توليد الأيزومرات
+                opts = StereoEnumerationOptions(tryEmbedding=True, onlyUnassigned=False)
+                isomers = list(EnumerateStereoisomers(base_mol, options=opts))
+                
+                st.success(f"Found {len(isomers)} Stereoisomer(s).")
+
+                # القسم 1: العلاقات الأيزومرية
+                st.subheader("1. Isomeric Relationships")
+                if len(isomers) > 1:
+                    st.info("💡 Stereoisomeric relationship(s) detected between the structures.")
+                else:
+                    st.info("The compound is achiral or only one isomer was identified.")
+
+                st.write("---")
+
+                # القسم 2 و 3: العرض في شبكة (Grid)
+                cols = st.columns(len(isomers))
+                for i, iso in enumerate(isomers):
+                    with cols[i]:
+                        # تحديد التسمية (R/S/E/Z/Axial)
+                        Chem.AssignStereochemistry(iso, force=True, cleanIt=True)
+                        centers = Chem.FindMolChiralCenters(iso, includeUnassigned=True)
+                        label = f"Isomer {i+1}"
+                        if centers: label += f" ({centers[0][1]})"
+                        
+                        st.markdown(f"### {label}")
+                        
+                        # رسم الـ 2D المحسن
+                        st.image(render_pro_2d(iso), use_container_width=True)
+                        
+                        # عرض الـ 3D
+                        render_3d(iso)
+
+        except Exception as e:
+            st.error(f"Error during analysis: {e}")
