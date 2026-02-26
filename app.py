@@ -51,25 +51,19 @@ def calculate_axial_name(mol):
         return "Ra" if angle > 0 else "Sa"
     except: return "Ra/Sa"
 
-# --- دالة 2D تم تعديلها فقط لإظهار wedge/hatched للألين Ra/Sa بوضوح ---
+# --- دالة 2D ---
 def render_pro_2d(mol):
     mc = Chem.Mol(mol)
-
-    # Assign stereochemistry و2D coords
     Chem.AssignStereochemistry(mc, force=True, cleanIt=True)
     AllChem.Compute2DCoords(mc)
-
-    # WedgeMolBonds يظهر الاتصالات الاستيريو
     Chem.WedgeMolBonds(mc, mc.GetConformer())
-
     drawer = rdMolDraw2D.MolDraw2DCairo(500, 500)
     opts = drawer.drawOptions()
     opts.bondLineWidth = 3.5
     opts.addStereoAnnotation = True
-    opts.useMolBlockWedging = False  # يعتمد على WedgeMolBonds
+    opts.useMolBlockWedging = False
     opts.fixedBondLength = 35
     opts.explicitMethyl = True
-
     drawer.DrawMolecule(mc)
     drawer.FinishDrawing()
     return drawer.GetDrawingText()
@@ -98,7 +92,6 @@ if st.button("Analyze & Visualize Isomers"):
             isomers.append(iso2)
 
         st.subheader(f"Found {len(isomers)} Stereoisomer(s)")
-        
         st.subheader("1. Isomeric Relationships")
         if len(isomers) > 1:
             st.info("💡 Relationships Analysis: Stereoisomeric relationship detected (Enantiomers/Axial).")
@@ -106,22 +99,36 @@ if st.button("Analyze & Visualize Isomers"):
             st.info("The compound is achiral or only one isomer was identified.")
 
         st.write("---")
-        
         cols = st.columns(len(isomers))
         for i, iso in enumerate(isomers):
             with cols[i]:
                 axial_type = "Ra" if i == 0 else "Sa"
                 st.markdown(f"### Isomer {i+1}: <span style='color: #800000;'>{axial_type}</span>", unsafe_allow_html=True)
                 
-                # عرض الـ 2D المحسن مع wedge/hatched واضح
+                # عرض الـ 2D
                 st.image(render_pro_2d(iso), use_container_width=True)
                 
-                # عرض الـ 3D التفاعلي
+                # عرض الـ 3D التفاعلي مع تلوين الذرات الـ R أو S
                 m3d = Chem.AddHs(iso)
                 AllChem.EmbedMolecule(m3d, AllChem.ETKDG())
+                
                 view = py3Dmol.view(width=400, height=300)
+                
+                # كل الذرات لونها افتراضي (أزرق)
+                default_color = {'stick': {'colorscheme': 'cyanCarbon'} }
                 view.addModel(Chem.MolToMolBlock(m3d), 'mol')
-                view.setStyle({'stick': {}, 'sphere': {'scale': 0.25}})
+                
+                # تلوين الذرات الاستيريو المختلفة
+                for atom in m3d.GetAtoms():
+                    if atom.GetChiralTag() == Chem.ChiralType.CHI_TETRAHEDRAL_CW:
+                        # R -> أخضر
+                        view.setStyle({'serial': atom.GetIdx()+1}, {'stick': {'color':'green'}, 'sphere': {'color':'green','scale':0.3}})
+                    elif atom.GetChiralTag() == Chem.ChiralType.CHI_TETRAHEDRAL_CCW:
+                        # S -> أحمر
+                        view.setStyle({'serial': atom.GetIdx()+1}, {'stick': {'color':'red'}, 'sphere': {'color':'red','scale':0.3}})
+                
+                # ستايل عام
+                view.setStyle({'stick': {}, 'sphere': {'scale':0.25}})
                 view.zoomTo()
                 showmol(view)
     else:
