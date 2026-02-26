@@ -108,26 +108,25 @@ if st.button("Analyze & Visualize Isomers"):
                 # عرض الـ 2D
                 st.image(render_pro_2d(iso), use_container_width=True)
                 
-                # عرض الـ 3D التفاعلي مع تلوين الذرات الـ R أو S
+                # عرض الـ 3D التفاعلي مع تلوين الذرة R/S في الألين فقط باللون الأحمر
                 m3d = Chem.AddHs(iso)
                 AllChem.EmbedMolecule(m3d, AllChem.ETKDG())
                 
                 view = py3Dmol.view(width=400, height=300)
-                
-                # كل الذرات لونها افتراضي (أزرق)
-                default_color = {'stick': {'colorscheme': 'cyanCarbon'} }
                 view.addModel(Chem.MolToMolBlock(m3d), 'mol')
                 
-                # تلوين الذرات الاستيريو المختلفة
-                for atom in m3d.GetAtoms():
-                    if atom.GetChiralTag() == Chem.ChiralType.CHI_TETRAHEDRAL_CW:
-                        # R -> أخضر
-                        view.setStyle({'serial': atom.GetIdx()+1}, {'stick': {'color':'green'}, 'sphere': {'color':'green','scale':0.3}})
-                    elif atom.GetChiralTag() == Chem.ChiralType.CHI_TETRAHEDRAL_CCW:
-                        # S -> أحمر
-                        view.setStyle({'serial': atom.GetIdx()+1}, {'stick': {'color':'red'}, 'sphere': {'color':'red','scale':0.3}})
+                # إيجاد ذرات الألين
+                allene_matches = iso.GetSubstructMatches(allene_p)
+                allene_atoms = set()
+                for match in allene_matches:
+                    allene_atoms.update(match)
                 
-                # ستايل عام
+                # تلوين **الذرات الاستيريو فقط** في الألين باللون الأحمر
+                for idx in allene_atoms:
+                    atom = m3d.GetAtomWithIdx(idx)
+                    if atom.GetChiralTag() in [Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW]:
+                        view.setStyle({'serial': idx+1}, {'stick': {'color':'red'}, 'sphere': {'color':'red','scale':0.3}})
+                
                 view.setStyle({'stick': {}, 'sphere': {'scale':0.25}})
                 view.zoomTo()
                 showmol(view)
