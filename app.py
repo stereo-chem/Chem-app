@@ -12,7 +12,6 @@ import numpy as np
 # --- 1. إعدادات الصفحة والستايل ---
 st.set_page_config(page_title="Professional Isomer System", layout="wide")
 
-# استرجاع الكلام الذي اختفى (دليل المراجع الكامل)
 st.markdown("""
 <div style="background-color: #fdf2f2; padding: 15px; border-radius: 10px; border-left: 5px solid #800000; margin-bottom: 20px;">
     <strong style="color: #800000; font-size: 1.2em;">Stereoisomerism Reference Guide:</strong><br>
@@ -58,26 +57,28 @@ def calculate_axial_name(mol):
     except:
         return "Ra/Sa"
 
-# ✅ تم تعديل هذه الجزئية فقط
+# ✅ تم تعديل هذه الدالة فقط لإظهار wedge/hatched صح
 def render_pro_2d(mol):
     mc = Chem.Mol(mol)
-    
+
     Chem.AssignStereochemistry(mc, force=True, cleanIt=True)
     AllChem.Compute2DCoords(mc)
 
+    # أهم خطوة لعرض الwedge والhatched بشكل صحيح
+    Chem.WedgeMolBonds(mc, mc.GetConformer())
+
     drawer = rdMolDraw2D.MolDraw2DCairo(500, 500)
     opts = drawer.drawOptions()
-    
+
     opts.bondLineWidth = 3.0
     opts.addStereoAnnotation = True
-    opts.useMolBlockWedging = True
+    opts.useMolBlockWedging = False
     opts.fixedBondLength = 35
     opts.explicitMethyl = True
-    opts.includeAtomTags = True
 
     drawer.DrawMolecule(mc)
     drawer.FinishDrawing()
-    
+
     return drawer.GetDrawingText()
 
 # --- 3. المعالجة الرئيسية ---
