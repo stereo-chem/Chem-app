@@ -57,14 +57,13 @@ def calculate_axial_name(mol):
     except:
         return "Ra/Sa"
 
-# ✅ تم تعديل هذه الدالة فقط لإظهار wedge/hatched صح
+# ✅ تم تعديل هذه الدالة فقط لإظهار H + wedge/hatched بوضوح
 def render_pro_2d(mol):
-    mc = Chem.Mol(mol)
+    mc = Chem.AddHs(Chem.Mol(mol))  # إضافة H صراحةً
 
     Chem.AssignStereochemistry(mc, force=True, cleanIt=True)
     AllChem.Compute2DCoords(mc)
 
-    # أهم خطوة لعرض الwedge والhatched بشكل صحيح
     Chem.WedgeMolBonds(mc, mc.GetConformer())
 
     drawer = rdMolDraw2D.MolDraw2DCairo(500, 500)
@@ -90,7 +89,6 @@ if st.button("Analyze & Visualize Isomers"):
         mol = Chem.MolFromSmiles(smiles)
         allene_p = Chem.MolFromSmarts("C=C=C")
         
-        # تفعيل كشف الألين برمجياً
         if mol.HasSubstructMatch(allene_p):
             for match in mol.GetSubstructMatches(allene_p):
                 mol.GetAtomWithIdx(match[0]).SetChiralTag(Chem.ChiralType.CHI_TETRAHEDRAL_CW)
