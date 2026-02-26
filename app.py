@@ -40,7 +40,6 @@ def get_smiles_smart(name):
     return None
 
 def calculate_axial_name(mol):
-    """حساب Ra/Sa بناءً على تماثل الإحداثيات"""
     try:
         mol_3d = Chem.AddHs(mol)
         AllChem.EmbedMolecule(mol_3d, AllChem.ETKDG())
@@ -52,21 +51,22 @@ def calculate_axial_name(mol):
         return "Ra" if angle > 0 else "Sa"
     except: return "Ra/Sa"
 
-# --- دالة 2D تم تعديلها فقط لإظهار wedge/hatched ---
+# --- دالة 2D تم تعديلها فقط لإظهار wedge/hatched للألين Ra/Sa بوضوح ---
 def render_pro_2d(mol):
     mc = Chem.Mol(mol)
 
+    # Assign stereochemistry و2D coords
     Chem.AssignStereochemistry(mc, force=True, cleanIt=True)
     AllChem.Compute2DCoords(mc)
 
-    # مهم لإظهار wedge/hatched على أي رابطة استيريو
+    # WedgeMolBonds يظهر الاتصالات الاستيريو
     Chem.WedgeMolBonds(mc, mc.GetConformer())
 
     drawer = rdMolDraw2D.MolDraw2DCairo(500, 500)
     opts = drawer.drawOptions()
-    opts.bondLineWidth = 4.0
+    opts.bondLineWidth = 3.5
     opts.addStereoAnnotation = True
-    opts.useMolBlockWedging = False
+    opts.useMolBlockWedging = False  # يعتمد على WedgeMolBonds
     opts.fixedBondLength = 35
     opts.explicitMethyl = True
 
@@ -75,7 +75,7 @@ def render_pro_2d(mol):
     return drawer.GetDrawingText()
 
 # --- 3. المعالجة الرئيسية ---
-compound_name = st.text_input("Enter Structure Name:", "1-Cyclohexyl-3-phenylpropadiene")
+compound_name = st.text_input("Enter Structure Name:", "1,3-Dimethyl-3-phenylallene")
 
 if st.button("Analyze & Visualize Isomers"):
     smiles = get_smiles_smart(compound_name)
@@ -83,7 +83,6 @@ if st.button("Analyze & Visualize Isomers"):
         mol = Chem.MolFromSmiles(smiles)
         allene_p = Chem.MolFromSmarts("C=C=C")
         
-        # تفعيل كشف الألين برمجياً
         if mol.HasSubstructMatch(allene_p):
             for match in mol.GetSubstructMatches(allene_p):
                 mol.GetAtomWithIdx(match[0]).SetChiralTag(Chem.ChiralType.CHI_TETRAHEDRAL_CW)
@@ -91,7 +90,6 @@ if st.button("Analyze & Visualize Isomers"):
         opts = StereoEnumerationOptions(tryEmbedding=True, onlyUnassigned=False)
         isomers = list(EnumerateStereoisomers(mol, options=opts))
         
-        # إذا لم يظهر الأيزومر الثاني للألين، نصنعه يدوياً
         if len(isomers) == 1 and mol.HasSubstructMatch(allene_p):
             iso2 = Chem.Mol(isomers[0])
             for a in iso2.GetAtoms():
@@ -115,7 +113,7 @@ if st.button("Analyze & Visualize Isomers"):
                 axial_type = "Ra" if i == 0 else "Sa"
                 st.markdown(f"### Isomer {i+1}: <span style='color: #800000;'>{axial_type}</span>", unsafe_allow_html=True)
                 
-                # عرض الـ 2D المحسن
+                # عرض الـ 2D المحسن مع wedge/hatched واضح
                 st.image(render_pro_2d(iso), use_container_width=True)
                 
                 # عرض الـ 3D التفاعلي
