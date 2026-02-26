@@ -1,0 +1,11 @@
+streamlit
+pubchempy
+rdkit
+stmol
+py3Dmol
+ipython_genutils
+
+
+
+
+
